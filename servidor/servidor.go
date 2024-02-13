@@ -90,7 +90,7 @@ func AtualizaAnimal(w http.ResponseWriter, r *http.Request) {
 
 	erro = json.NewDecoder(r.Body).Decode(&animalAtualizado)
 	if erro != nil {
-		http.Error(w, "Erro ao ler o corpo da requisição: ", http.StatusBadRequest)
+		http.Error(w, "Erro ao ler o corpo da requisição: ", http.StatusInternalServerError)
 		return
 	}
 
@@ -115,4 +115,52 @@ func AtualizaAnimal(w http.ResponseWriter, r *http.Request) {
 	// Escrever uma resposta de sucesso
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Animal Atualizado com Sucesso"))
+}
+
+func ApagaAnimal(w http.ResponseWriter, r *http.Request) {
+	db, erro := banco.Conectar()
+	if erro != nil {
+		http.Error(w, "Erro ao conectar", http.StatusInternalServerError)
+		return
+	}
+	// Extrair o ID do parâmetro da URL
+	paramEx := mux.Vars(r)
+	id, erro := strconv.ParseUint(paramEx["id"], 10, 32)
+	if erro != nil {
+		http.Error(w, "ID inválido: ", http.StatusBadRequest)
+		return
+	}
+
+	// consultar bd para pegar animal existente:
+	var animalExistente Animais
+	resultado := db.First(&animalExistente, id)
+	if resultado.Error != nil {
+		http.Error(w, "Animal não encontrafo", http.StatusNotFound)
+		return
+	}
+	//excluir Animal
+	resultado = db.Delete(&animalExistente)
+	if resultado.Error != nil {
+		http.Error(w, "Erro ao deletar animal", http.StatusInternalServerError)
+		return
+	}
+	//retornar uma resposta de sucesso:
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Animal Deletado"))
+}
+
+func BuscaAnimais(w http.ResponseWriter, r *http.Request) {
+	db, erro := banco.Conectar()
+	if erro != nil {
+		http.Error(w, "Erro ao conectar com o banco de dados", http.StatusInternalServerError)
+		return
+	}
+	var animais []Animais
+	resultado := db.Find(&animais)
+	if resultado.Error != nil {
+		http.Error(w, "Animais não encontrados", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(animais)
 }
